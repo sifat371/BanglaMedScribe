@@ -1,47 +1,66 @@
 # BanglaMedScribe
 
-> Working codename for a Bangla/Banglish clinical speech research and documentation prototype.
+[![CI](https://github.com/sifat371/BanglaMedScribe/actions/workflows/ci.yml/badge.svg)](https://github.com/sifat371/BanglaMedScribe/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](CHANGELOG.md)
 
-The project is being matured around a measurable speech-processing core:
+> Bangla/Banglish clinical speech processing and documentation research prototype.
 
-**consultation audio → reproducible ASR → quantitative evaluation → speaker attribution → downstream clinical structure**
+BanglaMedScribe is being developed around a measurable speech-processing core:
 
-The current codebase is a research/engineering prototype, not a validated clinical system.
+**consultation audio → reproducible ASR → quantitative evaluation → speaker diarization/alignment → downstream clinical structure**
 
-## What is implemented
+The repository is a research/engineering prototype, not a validated clinical system.
 
-- 16 kHz mono audio preprocessing with ffmpeg
-- pluggable `ASRProvider` abstraction
-- local multilingual transcription through `faster-whisper`
-- Bangla-oriented defaults with Banglish/English preserved by the multilingual model
-- segment and optional word timestamps
-- typed Pydantic transcript schemas
-- CLI and FastAPI inference surfaces
-- corpus-level WER/CER scoring
-- end-to-end benchmark runner producing per-utterance results and aggregate WER/CER/RTF
-- model-agnostic `DiarizationProvider` boundary
-- deterministic alignment of ASR segments with diarization turns
-- unit tests, Ruff linting, and GitHub Actions CI
+## Current maturity
 
-## What is not claimed yet
+| Capability | Status |
+| --- | --- |
+| 16 kHz audio preprocessing | Implemented |
+| faster-whisper ASR | Implemented |
+| Word/segment timestamps | Implemented |
+| FastAPI + CLI inference | Implemented |
+| WER/CER scoring | Implemented |
+| End-to-end WER/CER/RTF benchmark runner | Implemented |
+| Tag-based clinical error slices | Implemented |
+| pyannote Community-1 adapter | Implemented, not yet clinically benchmarked |
+| ASR/diarization temporal alignment | Implemented |
+| Diarization DER benchmark | Pending reviewed multi-speaker data |
+| Doctor/patient role identification | Pending |
+| Clinical fact extraction / note generation | Pending |
+
+## Speech pipeline
+
+- ffmpeg preprocessing to 16 kHz mono PCM WAV;
+- pluggable `ASRProvider` abstraction;
+- local multilingual transcription through `faster-whisper`;
+- Bangla-oriented defaults while preserving Banglish/English output from the multilingual model;
+- segment and optional word timestamps;
+- typed Pydantic transcript schemas;
+- CLI and FastAPI inference;
+- corpus-level WER/CER scoring;
+- benchmark runner with WER/CER/RTF, runtime configuration capture, and tag-based error slices;
+- model-independent diarization contract;
+- optional local pyannote Community-1 adapter;
+- deterministic ASR-segment / diarization-turn alignment;
+- Python 3.11/3.12 CI, tests, linting, console-entry checks, and package-build verification.
+
+## What is not claimed
 
 The repository does **not** currently claim:
 
-- a representative Bengali clinical-speech WER/CER;
-- a validated speaker-diarization model or DER result;
+- representative Bengali clinical-speech WER/CER;
+- a Bengali clinical diarization DER;
 - doctor/patient role-identification accuracy;
 - clinical deployment readiness;
 - diagnostic or prescribing capability.
 
 Those require reviewed benchmark data and explicit evaluation.
 
-## Requirements
-
-- Python 3.11+
-- ffmpeg
-- a machine capable of running the selected Whisper model
-
 ## Setup
+
+Requirements: Python 3.11+, ffmpeg, and suitable compute for the selected speech model.
 
 ```bash
 git clone https://github.com/sifat371/BanglaMedScribe.git
@@ -54,75 +73,93 @@ python -m pip install -e ".[asr,dev]"
 cp .env.example .env
 ```
 
-The default ASR model is `large-v3`. Change `BMS_ASR_MODEL` in `.env` when benchmarking other configurations.
-
-## Run transcription
+For optional local speaker diarization:
 
 ```bash
-python run_pipeline.py --audio path/to/consultation.wav
+python -m pip install -e ".[asr,diarization,dev]"
 ```
 
-or:
+The default ASR model is `large-v3`. Runtime settings are documented in `.env.example`.
+
+## Transcribe
 
 ```bash
 bms-transcribe --audio path/to/consultation.wav
 ```
 
-## Run the API
+The FastAPI service exposes:
+
+- `GET /health`
+- `POST /v1/transcribe` with multipart field `audio`
+
+Run locally with:
 
 ```bash
 uvicorn banglamedscribe.api:app --reload
 ```
 
-- `GET /health`
-- `POST /v1/transcribe` with multipart field `audio`
+## Benchmark ASR
 
-## Evaluate ASR
-
-For already generated reference/hypothesis pairs:
-
-```bash
-python scripts/evaluate_transcripts.py benchmarks/example_pairs.jsonl
-```
-
-For a reviewed audio manifest:
+Build a manually reviewed manifest using `benchmarks/manifest.example.csv`, then run:
 
 ```bash
 python scripts/run_asr_benchmark.py benchmarks/manifest.csv
 ```
 
-The benchmark runner writes per-utterance hypotheses plus corpus-level **WER, CER, and real-time factor (RTF)**.
+Outputs include:
 
-See `docs/EVALUATION.md` for the evaluation protocol. No benchmark number should be reported without a reviewed reference set and documented scope.
+- per-utterance reference/hypothesis records;
+- WER and CER;
+- real-time factor (RTF);
+- model/runtime settings;
+- slice-level WER/CER for tags such as `code-switch`, `medication`, `dose-number`, and `noisy`.
 
-## Diarization
+See [Evaluation protocol](docs/EVALUATION.md).
 
-`src/banglamedscribe/diarization.py` defines a provider-agnostic diarization contract and deterministic ASR-turn alignment.
+No benchmark number should be reported without a reviewed reference set and documented scope.
 
-A concrete pyannote/NeMo/local backend still needs to be implemented and evaluated before claiming speaker-diarization performance. Anonymous speaker labels are intentionally kept separate from doctor/patient role identification.
+## Speaker diarization
 
-See `docs/DIARIZATION.md`.
-
-## Test
+The optional pyannote adapter uses the open Community-1 diarization pipeline and prefers exclusive
+speaker turns when available for easier reconciliation with ASR timestamps.
 
 ```bash
-ruff check .
-pytest
+export BMS_DIARIZATION_HF_TOKEN=...
+bms-diarize path/to/conversation.wav
 ```
 
-CI avoids model downloads by testing provider-independent logic with injected fixtures.
+The project intentionally separates anonymous labels such as `SPEAKER_00` from semantic roles such
+as doctor and patient. Role assignment needs its own evaluation.
+
+See [Diarization](docs/DIARIZATION.md).
+
+## Test and build
+
+```bash
+python -m pip install -e ".[dev]"
+ruff check .
+pytest
+python -m build
+```
+
+CI runs the provider-independent test suite on Python 3.11 and 3.12 without downloading ASR or
+diarization model weights.
 
 ## Research maturity roadmap
 
 1. **Reviewed Bangla/Banglish clinical-style evaluation set**
-2. **ASR baselines** — WER/CER/RTF across model/configuration choices
-3. **Noise and code-switching slices**
-4. **Concrete diarization backend** — DER and speaker-attribution evaluation
-5. **Clinical terminology / medication / numeric error analysis**
-6. **Only then:** domain adaptation or fine-tuning where the benchmark justifies it
+2. **ASR baseline table** — model/configuration WER, CER, and RTF
+3. **Noise, code-switching, medication, and dose-number slices**
+4. **Multi-speaker benchmark** — DER and speaker-attribution analysis
+5. **Clinical terminology error analysis**
+6. **Domain adaptation/fine-tuning only after the benchmark identifies a justified target**
 
-## Safety boundary
+## Safety and privacy
 
-Use synthetic, scripted, public, or appropriately consented audio during development. Real patient data requires appropriate governance, privacy controls, retention policy, and clinical review.
+Use synthetic, scripted, public, de-identified, or appropriately consented audio during development.
+Real patient data requires appropriate governance, privacy controls, retention policy, and clinical
+review.
 
-The project is not an autonomous diagnostic or prescribing system.
+See [Security and privacy](SECURITY.md) and [development safety boundary](docs/SAFETY.md).
+
+BanglaMedScribe is not an autonomous diagnostic or prescribing system.
