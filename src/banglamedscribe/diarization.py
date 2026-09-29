@@ -88,7 +88,7 @@ def assign_speakers_by_overlap(
     return aligned
 
 
-def build_diarization_provider(settings: "Settings") -> DiarizationProvider:
+def build_diarization_provider(settings: Settings) -> DiarizationProvider:
     provider = settings.diarization_provider.strip().lower()
     if provider == "pyannote":
         from banglamedscribe.diarization_pyannote import PyannoteDiarizationProvider
