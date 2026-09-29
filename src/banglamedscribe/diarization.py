@@ -3,6 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from banglamedscribe.config import Settings
+
 
 from banglamedscribe.schemas import SpeakerRole, TranscriptSegment
 
@@ -81,3 +86,14 @@ def assign_speakers_by_overlap(
         aligned.append(segment.model_copy(update={"speaker": speaker}))
 
     return aligned
+
+
+def build_diarization_provider(settings: "Settings") -> DiarizationProvider:
+    provider = settings.diarization_provider.strip().lower()
+    if provider == "pyannote":
+        from banglamedscribe.diarization_pyannote import PyannoteDiarizationProvider
+
+        return PyannoteDiarizationProvider(settings)
+    raise ValueError(
+        f"Unsupported diarization provider: {settings.diarization_provider!r}"
+    )
