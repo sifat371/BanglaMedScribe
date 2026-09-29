@@ -7,11 +7,24 @@ The project separates **inference capability** from **measured ASR evidence**.
 Create a CSV with one utterance per row:
 
 ```csv
-id,audio_path,reference
-case-001,/data/case-001.wav,ম্যানুয়ালি যাচাই করা রেফারেন্স ট্রান্সক্রিপ্ট
+id,audio_path,reference,tags
+case-001,/data/case-001.wav,ম্যানুয়ালি যাচাই করা রেফারেন্স ট্রান্সক্রিপ্ট,bangla;clean;symptom
 ```
 
+Required columns are `id`, `audio_path`, and `reference`. The optional `tags` column accepts
+semicolon-separated labels and enables slice-level reporting.
+
 References should be manually reviewed. Do not use model-generated transcripts as ground truth.
+
+Recommended tags include:
+
+- `bangla`
+- `code-switch`
+- `medical-term`
+- `medication`
+- `dose-number`
+- `clean`
+- `noisy`
 
 ## 2. Run the configured ASR benchmark
 
@@ -30,7 +43,15 @@ benchmarks/results/
 └── summary.json
 ```
 
-The summary contains corpus-level WER, CER, total audio/inference time, and real-time factor (RTF).
+The summary contains:
+
+- corpus-level WER and CER;
+- total inference time and real-time factor (RTF);
+- the actual ASR model/runtime configuration;
+- WER/CER by every manifest tag.
+
+This makes it possible to distinguish, for example, overall performance from code-switched,
+medication-name, dose-number, and noisy-speech performance.
 
 ## 3. Report benchmark scope
 
@@ -44,9 +65,10 @@ Any public result should state:
 - normalization/scoring policy;
 - whether the result is development-only or held-out.
 
-## 4. Recommended error slices
+## 4. Clinical-style error slices
 
-For clinical-style speech, maintain tags or separate manifests for:
+A single headline WER can hide the errors that matter most in a documentation setting. At minimum,
+report separate slices where the data supports them for:
 
 - medical terminology;
 - medication names;
