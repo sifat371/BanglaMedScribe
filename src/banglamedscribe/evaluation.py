@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
-from typing import Iterable
+from collections.abc import Iterable
 
 _PUNCTUATION_RE = re.compile(r"[^\w\s\u0980-\u09FF]", flags=re.UNICODE)
 
