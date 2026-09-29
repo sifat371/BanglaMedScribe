@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     asr_beam_size: int = Field(default=5, ge=1, le=20)
     asr_vad_filter: bool = True
     asr_word_timestamps: bool = True
+
+    diarization_provider: str = "pyannote"
+    diarization_model: str = "pyannote/speaker-diarization-community-1"
+    diarization_device: str = "auto"
+    diarization_use_exclusive: bool = True
+    diarization_hf_token: SecretStr | None = None
 
     output_dir: Path = Path("outputs")
     keep_processed_audio: bool = False
