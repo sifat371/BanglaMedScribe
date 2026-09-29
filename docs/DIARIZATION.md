@@ -1,34 +1,81 @@
-# Diarization boundary
+# Speaker diarization
 
-Speaker diarization is a required research milestone, but the repository does **not** yet claim a
-validated diarization model.
+BanglaMedScribe includes a concrete optional adapter for the current open-source
+`pyannote/speaker-diarization-community-1` pipeline plus a model-agnostic provider boundary.
 
-The current code introduces two stable pieces:
+The repository still does **not** claim a Bengali clinical diarization accuracy or DER until a
+reviewed multi-speaker evaluation set is run.
 
-1. DiarizationProvider — a model-agnostic interface for future pyannote/NeMo/local providers.
-2. Deterministic overlap-based alignment from diarization turns to ASR transcript segments.
+## Install
 
-This deliberately separates three different problems:
+```bash
+python -m pip install -e ".[diarization,dev]"
+```
 
-    audio
-      |-- ASR -> timestamped words/segments
-      |-- diarization -> anonymous speaker turns
-                             |
-                             v
-                    temporal alignment
-                             |
-                             v
-                  speaker-attributed ASR
-                             |
-                             v
-                 role identification
-                 (doctor/patient/etc.)
+Before first use, accept the Community-1 model conditions on Hugging Face and provide an access
+token locally:
 
-Diarization labels such as SPEAKER_00 are **not automatically equivalent** to doctor/patient
-roles. Role identification must be evaluated separately rather than inferred by speaker index.
+```bash
+export BMS_DIARIZATION_HF_TOKEN=...
+```
 
-## Before making a CV/result claim
+Do not commit access tokens.
 
-A concrete diarization backend should be implemented and evaluated on reviewed multi-speaker audio.
-Report at least the benchmark scope and a diarization metric such as DER, together with the
-speaker-attribution protocol.
+## Run
+
+```bash
+python scripts/run_diarization.py path/to/conversation.wav
+```
+
+or, after package installation:
+
+```bash
+bms-diarize path/to/conversation.wav
+```
+
+By default the adapter requests the Community-1 **exclusive speaker diarization** output when
+available. Exclusive turns are useful for reconciling one active speaker label with ASR timestamps.
+
+## Architecture
+
+The project deliberately separates:
+
+```text
+audio
+  |-- ASR -> timestamped words/segments
+  |-- diarization -> anonymous speaker turns
+                         |
+                         v
+                temporal alignment
+                         |
+                         v
+              speaker-attributed ASR
+                         |
+                         v
+             role identification
+             (doctor/patient/etc.)
+```
+
+Diarization labels such as `SPEAKER_00` are not automatically doctor/patient identities. A
+separate role-identification step and evaluation are required.
+
+## What is tested without model downloads
+
+CI tests:
+
+- provider-independent diarization data structures;
+- ASR/turn overlap alignment;
+- conversion of pyannote-style annotations into stable `SpeakerTurn` objects.
+
+CI intentionally does not download Community-1 weights.
+
+## Before making a performance claim
+
+Run a reviewed multi-speaker benchmark and report:
+
+- audio source and consent/data-governance status;
+- number of conversations and speakers;
+- recording conditions;
+- diarization model/configuration;
+- DER (or another clearly defined speaker metric);
+- role-attribution protocol if doctor/patient roles are reported.
