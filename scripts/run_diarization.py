@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 from banglamedscribe.diarization_cli import main
 
 
